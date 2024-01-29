@@ -1,0 +1,5 @@
+1|Submit assignment|2024_01_01|School
+0|Go to the gym|1990_12_31|Personal
+1|Read a book|2024_02_15|Personal
+0|Complete coding project|2024_03_10|Work
+1|Plan weekend trip|2024_04_20|Personal
