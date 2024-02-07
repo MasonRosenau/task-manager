@@ -202,9 +202,23 @@ void printTaskList(struct taskList tasks)
     while(currTask != NULL)
     {
         printf("Task: %s\n", currTask->name);
-        printf("Complete: %d\n", currTask->complete);
+        if(currTask->complete == 1)
+        {
+            printf("Complete: Yes\n");
+        }
+        else
+        {
+            printf("Complete: No\n");
+        }
         printf("Due Date: %d_%d_%d\n", currTask->dueDate.year, currTask->dueDate.month, currTask->dueDate.day);
-        printf("Category: %s\n", currTask->category);
+        if(currTask->category != NULL)
+        {
+            printf("Category: %s\n", currTask->category);
+        }
+        else
+        {
+            printf("Category: None\n");
+        }
         printf("-------------------------\n");
         currTask = currTask->next;
     }
@@ -216,6 +230,69 @@ void printTaskList(struct taskList tasks)
 **********************************************************************************/
 void createTaskFromUser(struct taskList* tasks)
 {
+    //create a new task
+    struct task* newTask = malloc(sizeof(struct task));
+    newTask->next = NULL;
+    newTask->complete = 0;
+
+    //fill out newTask info from user
+    size_t bufferSize = 32;
+    size_t charsRead = 0;
+
+    //obtain task name
+    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the name of the task\n|   you would like to create, and hit\n|   enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|   : ");
+    newTask->name = (char *)malloc(bufferSize * sizeof(char));
+    memset(newTask->name, '\0', bufferSize);
+    charsRead = getline(&(newTask->name), &bufferSize, stdin);
+    (newTask->name)[charsRead - 1] = '\0';
+
+    //obtain task category
+    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the category of the\n|   task you would like to create, and\n|   hit enter.\n|\n|   To omit a category for this task,\n|   simply hit enter.\n|\n|   : ");
+    newTask->category = (char *)malloc(bufferSize * sizeof(char));
+    memset(newTask->category, '\0', bufferSize);
+    charsRead = getline(&(newTask->category), &bufferSize, stdin);
+    (newTask->category)[charsRead - 1] = '\0';
+    if((newTask->category)[0] == '\0')
+    {
+        free(newTask->category);
+        newTask->category = NULL;
+    }
+
+    //obtain task due date (YYYY_MM_DD)
+    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the year that this\n|   task is due.\n|\n|   : ");
+    char* buffer = (char *)malloc(bufferSize * sizeof(char));
+    memset(buffer, '\0', bufferSize);
+    //year
+    charsRead = getline(&buffer, &bufferSize, stdin);
+    (buffer)[charsRead - 1] = '\0';
+    newTask->dueDate.year = atoi(buffer);
+    //month
+    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the month that this\n|   task is due.\n|\n|   : ");
+    charsRead = getline(&buffer, &bufferSize, stdin);
+    (buffer)[charsRead - 1] = '\0';
+    newTask->dueDate.month = atoi(buffer);
+    //day
+    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the day that this\n|   task is due.\n|\n|   : ");
+    charsRead = getline(&buffer, &bufferSize, stdin);
+    (buffer)[charsRead - 1] = '\0';
+    newTask->dueDate.day = atoi(buffer);
+    free(buffer);
+
+    //insert newTask into tasks
+    if(tasks->head == NULL)
+    {
+        tasks->head = newTask;
+    }
+    else
+    {
+        struct task* currTask = tasks->head;
+        while(currTask->next != NULL)
+        {
+            currTask = currTask->next;
+        }
+        currTask->next = newTask;
+    }
+
     return;
 }
 
@@ -224,11 +301,11 @@ void createTaskFromUser(struct taskList* tasks)
 **********************************************************************************/
 int main(int argc, char *argv[])
 {   
-    char* buffer = NULL;
-    size_t bufferSize = 32;
 
     //create buffer
-    buffer = (char *)malloc(bufferSize * sizeof(char));
+    size_t bufferSize = 32;
+    char* buffer = (char *)malloc(bufferSize * sizeof(char));
+    memset(buffer, '\0', bufferSize);
     if(buffer == NULL)
     {
         perror("Unable to allocate buffer");
@@ -253,7 +330,6 @@ int main(int argc, char *argv[])
     //if importFile is null here, user is starting fresh
     if(!importFile)
     {
-        printf("Starting fresh!\n");
         //create a task (tasks should be null)
         createTaskFromUser(&tasks);
 
