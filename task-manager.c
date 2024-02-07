@@ -24,9 +24,9 @@ struct taskList
     int numTasks;
 };
 
-void promptImport(char** buffer, size_t bufferSize);
-void importTasks(struct taskList* tasks, const char* filepath);
-struct task* createTask(char* currLine);
+FILE* promptImport(char** buffer, size_t bufferSize, int retry);
+void importTasks(struct taskList* tasks, const char* filepath, FILE* importFile);
+struct task* createTaskFromFile(char* currLine);
 void createDueDate(struct task* currTask, char* dueDate);
 void printTaskList(struct taskList tasks);
 
@@ -34,13 +34,22 @@ void printTaskList(struct taskList tasks);
 /**********************************************************************************
     ** Description: Prompt's the user on whether they would like to import tasks
     from a file or start fresh with no tasks.
-    ** Parameters: Takes in a buffer, the bufferSize, and a variable to keep track
-    of the number of characters read.
+    ** Parameters: Takes in a buffer, the bufferSize, a variable to keep track
+    of the number of characters read, and a retry variable to indicate if this is
+    the first time the user is prompted or if they are retrying after an error.
 **********************************************************************************/
-void promptImport(char** buffer, size_t bufferSize)
+FILE* promptImport(char** buffer, size_t bufferSize, int retry)
 {
     //can be absolute or relative filepath ending in the filename of the file you want to import
-    printf("Enter a filepath/name to import tasks from!\nOtherwise, just hit 'Enter' to start fresh.\n");
+    //prompt user to enter file name again, as first attempt failed
+    if (retry == 1)
+    {
+        printf("|-------------------------------------------\n|\n|   It looks like the file name you\n|   entered couldn't be opened.\n|\n|   Please try again below, either\n|   by hitting enter or entering\n|   a new file name.\n|\n|   : ");
+    }
+    else
+    {
+        printf("|-------------------------------------------\n|\n|   Task Manager: Welcome!\n|\n|   To begin, you have 2 options:\n|\n|   1. To import tasks, type the name\n|      of a file from which to\n|      import tasks, and hit enter.\n|\n|      OR\n|\n|   2. To start with no tasks (from\n|      scratch), simply hit enter.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   : ");
+    }
 
     //take in user input; getline can dynamically resize buffer to >32
     size_t charsRead = getline(buffer, &bufferSize, stdin);
@@ -57,25 +66,35 @@ void promptImport(char** buffer, size_t bufferSize)
     */
     (*buffer)[charsRead - 1] = '\0';
 
-    return;
+    //if the user just hits enter, return NULL to start fresh
+    if(*buffer[0] == '\0')
+    {
+        return NULL;
+    }
+    else
+    {
+        //attempt to open file
+        FILE* importFile = fopen(*buffer, "r");
+        //if file couldn't be opened, return NULL
+        if(!importFile)
+        {
+            return NULL;
+        }
+        //otherwise, return the file pointer
+        else
+        {
+            return importFile;
+        }
+    }
 }
 
 /**********************************************************************************
     ** Description: Imports tasks from a correctly formatted text file.
     ** Parameters: A premade taskList struct and the filepath of the file to import
 **********************************************************************************/
-void importTasks(struct taskList* tasks, const char* filepath)
+void importTasks(struct taskList* tasks, const char* filepath, FILE* importFile)
 {
-    //attempt to open file to import tasks from
-    FILE* importFile = fopen(filepath, "r");
-    if(!importFile)
-    {
-        perror("Error opening file");
-        exit(1);
-    }
-
     //import tasks
-    printf("Importing tasks from file '%s'...\n", filepath);
     char *currLine = NULL;
     size_t len = 0;
     size_t numTasks = 0;
@@ -90,7 +109,7 @@ void importTasks(struct taskList* tasks, const char* filepath)
         numTasks++;
 
         //create a new task corresponding to the current line in file
-        struct task *newTask = createTask(currLine);
+        struct task *newTask = createTaskFromFile(currLine);
 
         //if list is empty
         if(tasks->head == NULL){
@@ -109,14 +128,14 @@ void importTasks(struct taskList* tasks, const char* filepath)
     //print success parse message and close file
     printf("\nSuccessfully processed file '%s', and parsed data for %d tasks.\n", filepath, numTasks);
     free(currLine);
-    fclose(importFile); //close the file pointer
+    fclose(importFile); //close the file pointer;
 }
 
 /**********************************************************************************
     ** Description: Takes in a line from a file and creates a task struct from it.
     ** Parameters: The current line corresponding to a task in the file.
 **********************************************************************************/
-struct task* createTask(char* currLine){
+struct task* createTaskFromFile(char* currLine){
     //malloc new task object
     struct task* currTask = malloc(sizeof(struct task));
 
@@ -192,6 +211,15 @@ void printTaskList(struct taskList tasks)
 }
 
 /**********************************************************************************
+    ** Description: Creates a task from user input and inserts it into tasks
+    ** Parameters: taskList struct to insert the task into
+**********************************************************************************/
+void createTaskFromUser(struct taskList* tasks)
+{
+    return;
+}
+
+/**********************************************************************************
     ** Description: Main Function 
 **********************************************************************************/
 int main(int argc, char *argv[])
@@ -211,24 +239,33 @@ int main(int argc, char *argv[])
     struct taskList tasks;
     tasks.head = NULL;
     tasks.numTasks = 0;
-    
-    //prompt user to import tasks or start fresh
-    promptImport(&buffer, bufferSize);
 
-    //if the first character in buffer exists (isn't just a \0)
-    if(buffer[0] != '\0')
+    //prompt user to import tasks or start fresh
+    FILE* importFile = promptImport(&buffer, bufferSize, 0);
+    
+    //if file couldn't be opened, and user didn't just hit enter to start fresh
+    while(importFile == NULL && buffer[0] != '\0')
     {
-        //open file and import it's tasks
-        importTasks(&tasks, buffer);
+        //keep reprompting user
+        importFile = promptImport(&buffer, bufferSize, 1);
     }
-    else
+
+    //if importFile is null here, user is starting fresh
+    if(!importFile)
     {
-        //otherwise start fresh with 0 tasks
         printf("Starting fresh!\n");
-        //create a task
+        //create a task (tasks should be null)
+        createTaskFromUser(&tasks);
+
+    }
+    else //user is importing tasks
+    {
+        //import tasks from importFile
+        importTasks(&tasks, buffer, importFile);
     }
     printTaskList(tasks);
-    
+    printf("show main menu now. 1+ task should be in\n");
+        
     free(buffer);
     return 0;
 }
