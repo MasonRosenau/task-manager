@@ -297,6 +297,23 @@ void createTaskFromUser(struct taskList* tasks)
 }
 
 /**********************************************************************************
+    ** Description: Frees all memory associated with a taskList
+    ** Parameters: taskList struct to free
+**********************************************************************************/
+void freeTaskList(struct taskList* tasks)
+{
+    struct task* currTask = tasks->head;
+    while(currTask != NULL)
+    {
+        struct task* nextTask = currTask->next;
+        free(currTask->name);
+        free(currTask->category);
+        free(currTask);
+        currTask = nextTask;
+    }
+}
+
+/**********************************************************************************
     ** Description: Main Function 
 **********************************************************************************/
 int main(int argc, char *argv[])
@@ -318,6 +335,7 @@ int main(int argc, char *argv[])
     tasks.numTasks = 0;
 
     //prompt user to import tasks or start fresh
+    system("clear");
     FILE* importFile = promptImport(&buffer, bufferSize, 0);
     
     //if file couldn't be opened, and user didn't just hit enter to start fresh
@@ -339,9 +357,51 @@ int main(int argc, char *argv[])
         //import tasks from importFile
         importTasks(&tasks, buffer, importFile);
     }
-    printTaskList(tasks);
-    printf("show main menu now. 1+ task should be in\n");
+
+    //main menu loop
+    while(1)
+    {
+        //display main menu options
+        printf("|-------------------------------------------\n|\n|   Task Manager: Home\n|\n|   1. View all tasks\n|   2. Mark a task as complete\n|   3. Create new task\n|   4. Export tasks\n|\n|   Please type 1, 2, 3, or 4, and hit\n|   enter to do the corresponding action.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   To exit, type 'exit' and hit enter.\n|\n|   : ");
         
+        // Get user input
+        size_t charsRead = getline(&buffer, &bufferSize, stdin);
+        if(charsRead == -1)
+        {
+            perror("Error reading input");
+            exit(1);
+        }
+        buffer[charsRead - 1] = '\0'; //remove newline character
+
+        //check user input and perform corresponding action
+        if(strcmp(buffer, "1") == 0)
+        {
+            printTaskList(tasks);
+        }
+        else if(strcmp(buffer, "2") == 0)
+        {
+            //completeTask(&tasks);
+        }
+        else if(strcmp(buffer, "3") == 0)
+        {
+            createTaskFromUser(&tasks);
+        }
+        else if(strcmp(buffer, "4") == 0)
+        {
+            //exportTasks(tasks);
+        }
+        else if(strcmp(buffer, "exit") == 0)
+        {
+            break;
+        }
+        else
+        {
+            printf("Invalid input. Please enter a valid option.\n");
+        }
+    }
+
+    //free dynamic memory
+    freeTaskList(&tasks);
     free(buffer);
     return 0;
 }
