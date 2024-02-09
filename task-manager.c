@@ -25,11 +25,13 @@ struct taskList
 };
 
 FILE* promptImport(char** buffer, size_t bufferSize, int retry);
-void importTasks(struct taskList* tasks, const char* filepath, FILE* importFile);
+void importTasks(struct taskList* tasks, FILE* importFile);
 struct task* createTaskFromFile(char* currLine);
 void createDueDate(struct task* currTask, char* dueDate);
 void printTaskList(struct taskList tasks);
-
+void completeTaskFromUser(struct taskList* tasks);
+void freeTaskList(struct taskList* tasks);
+void completeTask(struct taskList* tasks);
 
 /**********************************************************************************
     ** Description: Prompt's the user on whether they would like to import tasks
@@ -90,9 +92,9 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
 
 /**********************************************************************************
     ** Description: Imports tasks from a correctly formatted text file.
-    ** Parameters: A premade taskList struct and the filepath of the file to import
+    ** Parameters: A premade taskList struct the file to import
 **********************************************************************************/
-void importTasks(struct taskList* tasks, const char* filepath, FILE* importFile)
+void importTasks(struct taskList* tasks, FILE* importFile)
 {
     //import tasks
     char *currLine = NULL;
@@ -125,8 +127,6 @@ void importTasks(struct taskList* tasks, const char* filepath, FILE* importFile)
         }
     }
 
-    //print success parse message and close file
-    printf("\nSuccessfully processed file '%s', and parsed data for %d tasks.\n", filepath, numTasks);
     free(currLine);
     fclose(importFile); //close the file pointer;
 }
@@ -314,6 +314,70 @@ void freeTaskList(struct taskList* tasks)
 }
 
 /**********************************************************************************
+    ** Description: Allows user to mark a task as complete
+    ** Parameters: taskList from which to mark a task as complete
+**********************************************************************************/
+void completeTask(struct taskList* tasks)
+{
+    //display list of tasks
+    printf("|-------------------------------------------\n|\n|   Task Manager: Complete Task\n|\n|   Select the task you would like to mark as complete:\n|\n");
+    //print task names in accordance with their number
+    struct task* currTask = tasks->head;
+    int taskNumber = 1;
+    while(currTask != NULL)
+    {
+        printf("|   %d. %s\n", taskNumber, currTask->name);
+        currTask = currTask->next;
+        taskNumber++;
+    }
+
+    //ask user which task they want to complete
+    printf("|\n|   Please type the number that corresponds to the task you would like to mark as complete, and hit enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|   : ");
+    size_t bufferSize = 32;
+    char* buffer = (char *)malloc(bufferSize * sizeof(char));
+    size_t charsRead = getline(&buffer, &bufferSize, stdin);
+    if(charsRead == -1)
+    {
+        perror("Error reading input");
+        exit(1);
+    }
+    buffer[charsRead - 1] = '\0'; //remove newline character
+
+    //check if input is 'cancel'
+    if(strcmp(buffer, "cancel") == 0)
+    {
+        free(buffer);
+        return; //cancel this operation
+    }
+
+    //convert input to int
+    int selectedTask = atoi(buffer);
+
+    //find the task to mark as complete
+    currTask = tasks->head;
+    taskNumber = 1;
+    while(currTask != NULL && taskNumber < selectedTask)
+    {
+        currTask = currTask->next;
+        taskNumber++;
+    }
+
+    //check if the selected task exists
+    if(currTask == NULL || taskNumber != selectedTask)
+    {
+        printf("Invalid task number. Please try again.\n");
+        free(buffer);
+        return;
+    }
+
+    //mark selected task as complete
+    currTask->complete = 1;
+    printf("Task '%s' marked as complete.\n", currTask->name);
+
+    free(buffer);
+}
+
+/**********************************************************************************
     ** Description: Main Function 
 **********************************************************************************/
 int main(int argc, char *argv[])
@@ -355,7 +419,7 @@ int main(int argc, char *argv[])
     else //user is importing tasks
     {
         //import tasks from importFile
-        importTasks(&tasks, buffer, importFile);
+        importTasks(&tasks, importFile);
     }
 
     //main menu loop
@@ -372,7 +436,7 @@ int main(int argc, char *argv[])
             exit(1);
         }
         buffer[charsRead - 1] = '\0'; //remove newline character
-
+        printf("Your input: '%s'\n", buffer);
         //check user input and perform corresponding action
         if(strcmp(buffer, "1") == 0)
         {
@@ -380,7 +444,7 @@ int main(int argc, char *argv[])
         }
         else if(strcmp(buffer, "2") == 0)
         {
-            //completeTask(&tasks);
+            completeTask(&tasks);
         }
         else if(strcmp(buffer, "3") == 0)
         {
