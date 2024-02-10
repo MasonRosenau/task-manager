@@ -22,6 +22,7 @@ struct taskList
 {
     struct task* head;
     int numTasks;
+    int incompleteTasks;
 };
 
 FILE* promptImport(char** buffer, size_t bufferSize, int retry);
@@ -29,9 +30,10 @@ void importTasks(struct taskList* tasks, FILE* importFile);
 struct task* createTaskFromFile(char* currLine);
 void createDueDate(struct task* currTask, char* dueDate);
 void printTaskList(struct taskList tasks);
-void completeTaskFromUser(struct taskList* tasks);
+void createTaskFromUser(struct taskList* tasks);
 void freeTaskList(struct taskList* tasks);
 void completeTask(struct taskList* tasks);
+void exportTasks(struct taskList* tasks);
 
 /**********************************************************************************
     ** Description: Prompt's the user on whether they would like to import tasks
@@ -99,7 +101,6 @@ void importTasks(struct taskList* tasks, FILE* importFile)
     //import tasks
     char *currLine = NULL;
     size_t len = 0;
-    size_t numTasks = 0;
     size_t charsRead = 0;
 
     //create tail pointer to make insertions easier
@@ -108,10 +109,13 @@ void importTasks(struct taskList* tasks, FILE* importFile)
     //If getline() fails to read any characters from the input stream, it returns -1 (end of file)
     while ((charsRead = getline(&currLine, &len, importFile)) != -1){
 
-        numTasks++;
+        tasks->numTasks++;
 
         //create a new task corresponding to the current line in file
         struct task *newTask = createTaskFromFile(currLine);
+        if(newTask->complete == 0){
+            tasks->incompleteTasks++;
+        }
 
         //if list is empty
         if(tasks->head == NULL){
@@ -127,6 +131,7 @@ void importTasks(struct taskList* tasks, FILE* importFile)
         }
     }
 
+    printf("|\n|   Imported %d tasks!\n", tasks->numTasks);
     free(currLine);
     fclose(importFile); //close the file pointer;
 }
@@ -211,14 +216,7 @@ void printTaskList(struct taskList tasks)
             printf("Complete: No\n");
         }
         printf("Due Date: %d_%d_%d\n", currTask->dueDate.year, currTask->dueDate.month, currTask->dueDate.day);
-        if(currTask->category != NULL)
-        {
-            printf("Category: %s\n", currTask->category);
-        }
-        else
-        {
-            printf("Category: None\n");
-        }
+        printf("Category: %s\n", currTask->category);
         printf("-------------------------\n");
         currTask = currTask->next;
     }
@@ -254,8 +252,8 @@ void createTaskFromUser(struct taskList* tasks)
     (newTask->category)[charsRead - 1] = '\0';
     if((newTask->category)[0] == '\0')
     {
-        free(newTask->category);
-        newTask->category = NULL;
+        //set category to the string "None"
+        strcpy(newTask->category, "None");       
     }
 
     //obtain task due date (YYYY_MM_DD)
@@ -292,7 +290,8 @@ void createTaskFromUser(struct taskList* tasks)
         }
         currTask->next = newTask;
     }
-
+    tasks->numTasks++;
+    tasks->incompleteTasks++;
     return;
 }
 
@@ -319,20 +318,30 @@ void freeTaskList(struct taskList* tasks)
 **********************************************************************************/
 void completeTask(struct taskList* tasks)
 {
-    //display list of tasks
-    printf("|-------------------------------------------\n|\n|   Task Manager: Complete Task\n|\n|   Select the task you would like to mark as complete:\n|\n");
+    if(tasks->incompleteTasks == 0)
+    {
+        printf("|\n|   There are no incomplete tasks to mark\n|   as complete. Please create a task first!\n");
+        return;
+    }
+
+    //display list of incomplete tasks
+    printf("|-------------------------------------------\n|\n|   Task Manager: Complete Task\n|\n");
     //print task names in accordance with their number
     struct task* currTask = tasks->head;
-    int taskNumber = 1;
+    int i = 0;
     while(currTask != NULL)
     {
-        printf("|   %d. %s\n", taskNumber, currTask->name);
+        //print incomplete tasks
+        if(currTask->complete == 0)
+        {
+            i++;
+            printf("|   %d. %s\n", i, currTask->name);
+        }
         currTask = currTask->next;
-        taskNumber++;
     }
 
     //ask user which task they want to complete
-    printf("|\n|   Please type the number that corresponds to the task you would like to mark as complete, and hit enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|   : ");
+    printf("|\n|   Please type the number that corresponds\n|   to the task you would like to mark as\n|   complete, and hit enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|   : ");
     size_t bufferSize = 32;
     char* buffer = (char *)malloc(bufferSize * sizeof(char));
     size_t charsRead = getline(&buffer, &bufferSize, stdin);
@@ -353,27 +362,124 @@ void completeTask(struct taskList* tasks)
     //convert input to int
     int selectedTask = atoi(buffer);
 
-    //find the task to mark as complete
-    currTask = tasks->head;
-    taskNumber = 1;
-    while(currTask != NULL && taskNumber < selectedTask)
+    //check if input is valid
+    if(selectedTask < 1 || selectedTask > tasks->incompleteTasks)
     {
-        currTask = currTask->next;
-        taskNumber++;
-    }
-
-    //check if the selected task exists
-    if(currTask == NULL || taskNumber != selectedTask)
-    {
-        printf("Invalid task number. Please try again.\n");
+        printf("|\n|   Invalid input. Please enter a valid option.\n|\n");
         free(buffer);
         return;
     }
 
+    //find the selectedTask-th incomplete task
+    currTask = tasks->head;
+    i = 0;
+    while(currTask != NULL)
+    {
+        //if an incomplete task
+        if(currTask->complete == 0)
+        {
+            i++;
+            if(i == selectedTask)
+            {
+                //if selectedTask-th incomplete task is found
+                break;
+            }
+        }
+        currTask = currTask->next;
+    }
+
     //mark selected task as complete
     currTask->complete = 1;
-    printf("Task '%s' marked as complete.\n", currTask->name);
+    tasks->incompleteTasks--;
+    printf("|\n|   '%s' marked as complete.\n", currTask->name);
 
+    free(buffer);
+}
+
+/**********************************************************************************
+    ** Description: Exports tasks to a file
+    ** Parameters: taskList whose tasks to export
+**********************************************************************************/
+void exportTasks(struct taskList* tasks)
+{
+    int fileOption = 0;
+
+    //create buffer
+    size_t bufferSize = 32;
+    char* buffer = (char *)malloc(bufferSize * sizeof(char));
+    memset(buffer, '\0', bufferSize);
+    if(buffer == NULL)
+    {
+        perror("Unable to allocate buffer");
+        exit(1);
+    }
+
+    //ask user if they would like to overwrite or append
+    printf("|-------------------------------------------\n|\n|   Task Manager: Export Tasks\n|\n|   1. Overwrite file contents\n|\n|      OR\n|\n|   2. Append to existing file contents\n|\n|   Please select 1 or 2 to specify how\n|   the file you're exporting to will \n|   be affected.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|  : ");
+    size_t charsRead = getline(&buffer, &bufferSize, stdin);
+    if(charsRead == -1)
+    {
+        perror("Error reading input");
+        exit(1);
+    }
+    buffer[charsRead - 1] = '\0'; //remove newline character
+
+    //check if input is 'cancel'
+    if(strcmp(buffer, "cancel") == 0)
+    {
+        free(buffer);
+        return; //cancel this operation
+    }
+
+    //obtain whether user wants to overwrite or append
+    fileOption = atoi(buffer);
+
+    //ask user for a file they would like to export to
+    printf("|-------------------------------------------\n|\n|   Task Manager: Export Tasks\n|\n|   Please enter the name of the file you\n|   would like to export your tasks to, and\n|   hit enter.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|  : ");
+    charsRead = getline(&buffer, &bufferSize, stdin);
+    if(charsRead == -1)
+    {
+        perror("Error reading input");
+        exit(1);
+    }
+    buffer[charsRead - 1] = '\0'; //remove newline character
+
+    //check if input is 'cancel'
+    if(strcmp(buffer, "cancel") == 0)
+    {
+        free(buffer);
+        return; //cancel this operation
+    }
+
+    FILE* exportFile;
+    if(fileOption == 1)
+    {
+        //open file for overwriting
+        exportFile = fopen(buffer, "w");
+    }
+    if(fileOption == 2)
+    {
+        //open file for appending
+        exportFile = fopen(buffer, "a");
+    }
+
+    //couldn't open file
+    if(!exportFile)
+    {
+        perror("Error opening file");
+        free(buffer);
+        exit(1);
+    }
+
+    //write tasks to file
+    struct task* currTask = tasks->head;
+    while(currTask != NULL)
+    {
+        fprintf(exportFile, "%d|%s|%d_%d_%d|%s\n", currTask->complete, currTask->name, currTask->dueDate.year, currTask->dueDate.month, currTask->dueDate.day, currTask->category);
+        currTask = currTask->next;
+    }
+    printf("|\n|   Tasks exported to %s!\n", buffer);
+    fclose(exportFile);
     free(buffer);
 }
 
@@ -397,6 +503,7 @@ int main(int argc, char *argv[])
     struct taskList tasks;
     tasks.head = NULL;
     tasks.numTasks = 0;
+    tasks.incompleteTasks = 0;
 
     //prompt user to import tasks or start fresh
     system("clear");
@@ -436,7 +543,7 @@ int main(int argc, char *argv[])
             exit(1);
         }
         buffer[charsRead - 1] = '\0'; //remove newline character
-        printf("Your input: '%s'\n", buffer);
+
         //check user input and perform corresponding action
         if(strcmp(buffer, "1") == 0)
         {
@@ -452,7 +559,7 @@ int main(int argc, char *argv[])
         }
         else if(strcmp(buffer, "4") == 0)
         {
-            //exportTasks(tasks);
+            exportTasks(&tasks);
         }
         else if(strcmp(buffer, "exit") == 0)
         {
