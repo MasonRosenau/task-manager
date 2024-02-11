@@ -29,7 +29,7 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry);
 void importTasks(struct taskList* tasks, FILE* importFile);
 struct task* createTaskFromFile(char* currLine);
 void createDueDate(struct task* currTask, char* dueDate);
-void printTaskList(struct taskList tasks);
+void viewTasks(struct taskList* tasks);
 void createTaskFromUser(struct taskList* tasks);
 void freeTaskList(struct taskList* tasks);
 void completeTask(struct taskList* tasks);
@@ -48,11 +48,11 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
     //prompt user to enter file name again, as first attempt failed
     if (retry == 1)
     {
-        printf("|-------------------------------------------\n|\n|   It looks like the file name you\n|   entered couldn't be opened.\n|\n|   Please try again below, either\n|   by hitting enter or entering\n|   a new file name.\n|\n|   : ");
+        printf("|--------------------------------------------------\n|\n|   It looks like the file name you\n|   entered couldn't be opened.\n|\n|   Please try again below, either\n|   by hitting enter or entering\n|   a new file name.\n|\n|   : ");
     }
     else
     {
-        printf("|-------------------------------------------\n|\n|   Task Manager: Welcome!\n|\n|   To begin, you have 2 options:\n|\n|   1. To import tasks, type the name\n|      of a file from which to\n|      import tasks, and hit enter.\n|\n|      OR\n|\n|   2. To start with no tasks (from\n|      scratch), simply hit enter.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   : ");
+        printf("|--------------------------------------------------\n|\n|   Task Manager: Welcome!\n|\n|   To begin, you have 2 options:\n|\n|   1. To import tasks, type the name\n|      of a file from which to\n|      import tasks, and hit enter.\n|\n|      OR\n|\n|   2. To start with no tasks (from\n|      scratch), simply hit enter.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   : ");
     }
 
     //take in user input; getline can dynamically resize buffer to >32
@@ -74,6 +74,12 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
     if(*buffer[0] == '\0')
     {
         return NULL;
+    }
+    else if(strcmp(*buffer, "help") == 0)
+    {
+        system("clear");
+        printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   For more information on how files\n|   should be formatted, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager#\n|\n");
+        return promptImport(buffer, bufferSize, 0);
     }
     else
     {
@@ -130,8 +136,8 @@ void importTasks(struct taskList* tasks, FILE* importFile)
             tail = newTask;
         }
     }
-
-    printf("|\n|   Imported %d tasks!\n", tasks->numTasks);
+    system("clear");
+    printf("|--------------------------------------------------\n|   Imported %d tasks!\n", tasks->numTasks);
     free(currLine);
     fclose(importFile); //close the file pointer;
 }
@@ -201,25 +207,38 @@ void createDueDate(struct task* currTask, char* dueDate){
     ** Description: Prints a task list
     ** Parameters: Task list struct
 **********************************************************************************/
-void printTaskList(struct taskList tasks)
+void viewTasks(struct taskList* tasks)
 {
-    struct task* currTask = tasks.head;
+    if(tasks->numTasks == 0)
+    {
+        system("clear");
+        printf("|--------------------------------------------------\n|   There are no tasks to view.\n|   Please create a task first!\n");
+        return;
+    }
+    system("clear");
+    printf("|--------------------------------------------------\n|\n|   Task Manager: View Tasks\n|\n");
+    struct task* currTask = tasks->head;
     while(currTask != NULL)
     {
-        printf("Task: %s\n", currTask->name);
+        printf("|   %s\n", currTask->name);
         if(currTask->complete == 1)
         {
-            printf("Complete: Yes\n");
+            printf("|   Status: Complete\n");
         }
         else
         {
-            printf("Complete: No\n");
+            printf("|   Status: Incomplete\n");
         }
-        printf("Due Date: %d_%d_%d\n", currTask->dueDate.year, currTask->dueDate.month, currTask->dueDate.day);
-        printf("Category: %s\n", currTask->category);
-        printf("-------------------------\n");
+        if(strcmp(currTask->category, "None") != 0)
+        {
+            printf("|   Category: %s\n", currTask->category);
+        }
+        printf("|   Due: %d/%d/%d\n|\n", currTask->dueDate.month, currTask->dueDate.day, currTask->dueDate.year);
+        
         currTask = currTask->next;
     }
+
+
 }
 
 /**********************************************************************************
@@ -238,14 +257,23 @@ void createTaskFromUser(struct taskList* tasks)
     size_t charsRead = 0;
 
     //obtain task name
-    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the name of the task\n|   you would like to create, and hit\n|   enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|   : ");
+    system("clear");
+    printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the NAME of the task\n|   you would like to create, and hit\n|   enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|   : ");
     newTask->name = (char *)malloc(bufferSize * sizeof(char));
     memset(newTask->name, '\0', bufferSize);
     charsRead = getline(&(newTask->name), &bufferSize, stdin);
     (newTask->name)[charsRead - 1] = '\0';
 
+    //check if input is 'cancel'
+    if(strcmp(newTask->name, "cancel") == 0)
+    {
+        free(newTask->name);
+        free(newTask);
+        return; //cancel this operation
+    }
+
     //obtain task category
-    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the category of the\n|   task you would like to create, and\n|   hit enter.\n|\n|   To omit a category for this task,\n|   simply hit enter.\n|\n|   : ");
+    printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the CATEGORY of the\n|   task you would like to create, and\n|   hit enter.\n|\n|   To omit a category for this task,\n|   simply hit enter.\n|\n|   : ");
     newTask->category = (char *)malloc(bufferSize * sizeof(char));
     memset(newTask->category, '\0', bufferSize);
     charsRead = getline(&(newTask->category), &bufferSize, stdin);
@@ -257,7 +285,7 @@ void createTaskFromUser(struct taskList* tasks)
     }
 
     //obtain task due date (YYYY_MM_DD)
-    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the year that this\n|   task is due.\n|\n|   : ");
+    printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the YEAR that this\n|   task is due.\n|\n|   : ");
     char* buffer = (char *)malloc(bufferSize * sizeof(char));
     memset(buffer, '\0', bufferSize);
     //year
@@ -265,12 +293,12 @@ void createTaskFromUser(struct taskList* tasks)
     (buffer)[charsRead - 1] = '\0';
     newTask->dueDate.year = atoi(buffer);
     //month
-    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the month that this\n|   task is due.\n|\n|   : ");
+    printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the MONTH that this\n|   task is due.\n|\n|   : ");
     charsRead = getline(&buffer, &bufferSize, stdin);
     (buffer)[charsRead - 1] = '\0';
     newTask->dueDate.month = atoi(buffer);
     //day
-    printf("|-------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the day that this\n|   task is due.\n|\n|   : ");
+    printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the DATE that this\n|   task is due.\n|\n|   : ");
     charsRead = getline(&buffer, &bufferSize, stdin);
     (buffer)[charsRead - 1] = '\0';
     newTask->dueDate.day = atoi(buffer);
@@ -320,12 +348,14 @@ void completeTask(struct taskList* tasks)
 {
     if(tasks->incompleteTasks == 0)
     {
-        printf("|\n|   There are no incomplete tasks to mark\n|   as complete. Please create a task first!\n");
+        system("clear");
+        printf("|--------------------------------------------------\n|   There are no incomplete tasks to mark\n|   as complete. Please create a task first!\n");
         return;
     }
 
     //display list of incomplete tasks
-    printf("|-------------------------------------------\n|\n|   Task Manager: Complete Task\n|\n");
+    system("clear");
+    printf("|--------------------------------------------------\n|\n|   Task Manager: Complete Task\n|\n");
     //print task names in accordance with their number
     struct task* currTask = tasks->head;
     int i = 0;
@@ -402,10 +432,17 @@ void completeTask(struct taskList* tasks)
 **********************************************************************************/
 void exportTasks(struct taskList* tasks)
 {
+    if(tasks->numTasks == 0)
+    {
+        system("clear");
+        printf("|--------------------------------------------------\n|   There are no tasks to export.\n|   Please create a task first!\n");
+        return;
+    }
     int fileOption = 0;
 
     //create buffer
     size_t bufferSize = 32;
+    size_t charsRead;
     char* buffer = (char *)malloc(bufferSize * sizeof(char));
     memset(buffer, '\0', bufferSize);
     if(buffer == NULL)
@@ -414,28 +451,42 @@ void exportTasks(struct taskList* tasks)
         exit(1);
     }
 
-    //ask user if they would like to overwrite or append
-    printf("|-------------------------------------------\n|\n|   Task Manager: Export Tasks\n|\n|   1. Overwrite file contents\n|\n|      OR\n|\n|   2. Append to existing file contents\n|\n|   Please select 1 or 2 to specify how\n|   the file you're exporting to will \n|   be affected.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|  : ");
-    size_t charsRead = getline(&buffer, &bufferSize, stdin);
-    if(charsRead == -1)
+    system("clear");
+    int help = 1;
+    while(help == 1)
     {
-        perror("Error reading input");
-        exit(1);
-    }
-    buffer[charsRead - 1] = '\0'; //remove newline character
+        //ask user if they would like to overwrite or append
+        printf("|--------------------------------------------------\n|\n|   Task Manager: Export Tasks\n|\n|   1. Overwrite file contents\n|\n|      OR\n|\n|   2. Append to existing file contents\n|\n|   Please select 1 or 2 to specify how\n|   the file you're exporting to will \n|   be affected.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|  : ");
+        charsRead = getline(&buffer, &bufferSize, stdin);
+        if(charsRead == -1)
+        {
+            perror("Error reading input");
+            exit(1);
+        }
+        buffer[charsRead - 1] = '\0'; //remove newline character
 
-    //check if input is 'cancel'
-    if(strcmp(buffer, "cancel") == 0)
-    {
-        free(buffer);
-        return; //cancel this operation
-    }
+        //check if input is 'cancel'
+        if(strcmp(buffer, "cancel") == 0)
+        {
+            free(buffer);
+            return; //cancel this operation
+        }
+
+        //check if input is 'help'
+        if(strcmp(buffer, "help") == 0)
+        {
+            system("clear");
+            printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   For more information on how exporing\n|   to files works, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager#\n|\n");
+            continue;
+        }
+        help = 0;
+    }    
 
     //obtain whether user wants to overwrite or append
     fileOption = atoi(buffer);
 
     //ask user for a file they would like to export to
-    printf("|-------------------------------------------\n|\n|   Task Manager: Export Tasks\n|\n|   Please enter the name of the file you\n|   would like to export your tasks to, and\n|   hit enter.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|  : ");
+    printf("|--------------------------------------------------\n|\n|   Task Manager: Export Tasks\n|\n|   Please enter the name of the file you\n|   would like to export your tasks to, and\n|   hit enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|  : ");
     charsRead = getline(&buffer, &bufferSize, stdin);
     if(charsRead == -1)
     {
@@ -533,7 +584,7 @@ int main(int argc, char *argv[])
     while(1)
     {
         //display main menu options
-        printf("|-------------------------------------------\n|\n|   Task Manager: Home\n|\n|   1. View all tasks\n|   2. Mark a task as complete\n|   3. Create new task\n|   4. Export tasks\n|\n|   Please type 1, 2, 3, or 4, and hit\n|   enter to do the corresponding action.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   To exit, type 'exit' and hit enter.\n|\n|   : ");
+        printf("|--------------------------------------------------\n|\n|   Task Manager: Home\n|\n|   1. View all tasks\n|   2. Mark a task as complete\n|   3. Create a new task\n|   4. Export your tasks to a file\n|\n|   Please type 1, 2, 3, or 4, and hit\n|   enter to do the corresponding action.\n|\n|   To exit, type 'exit' and hit enter.\n|\n|   : ");
         
         // Get user input
         size_t charsRead = getline(&buffer, &bufferSize, stdin);
@@ -547,7 +598,7 @@ int main(int argc, char *argv[])
         //check user input and perform corresponding action
         if(strcmp(buffer, "1") == 0)
         {
-            printTaskList(tasks);
+            viewTasks(&tasks);
         }
         else if(strcmp(buffer, "2") == 0)
         {
@@ -574,5 +625,7 @@ int main(int argc, char *argv[])
     //free dynamic memory
     freeTaskList(&tasks);
     free(buffer);
+    system("clear");
+    printf("|--------------------------------------------------\n|   Thank you for using Task Manager!\n|--------------------------------------------------\n");
     return 0;
 }
