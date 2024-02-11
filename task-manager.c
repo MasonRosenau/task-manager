@@ -320,6 +320,7 @@ void createTaskFromUser(struct taskList* tasks)
     }
     tasks->numTasks++;
     tasks->incompleteTasks++;
+    printf("|--------------------------------------------------\n|   Task called '%s' created!\n", newTask->name);
     return;
 }
 
