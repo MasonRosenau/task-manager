@@ -28,6 +28,7 @@ Below is an example of a file that can be imported into the task manager:
 [empty line]
 ```
 Note that the file ends in a newline character. This is important when it comes to exporting tasks by appending to an existing file.
+- This allows you to import tasks from a file, create new tasks using Task Manager, and then export the tasks to the same file without any issues!
 
 ## Exporting Tasks
 

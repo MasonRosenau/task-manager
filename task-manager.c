@@ -78,7 +78,7 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
     else if(strcmp(*buffer, "help") == 0)
     {
         system("clear");
-        printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   For more information on how files\n|   should be formatted, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager#\n|\n");
+        printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   Importing from large files with\n|   lots of tasks may take awhile.\n|\n|   First time users with no existing\n|   files may want to start from scratch!\n|\n|   For more information importing\n|   tasks from files, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager?tab=readme-ov-file#importing-tasks\n|\n");
         return promptImport(buffer, bufferSize, 0);
     }
     else
@@ -476,7 +476,7 @@ void exportTasks(struct taskList* tasks)
         if(strcmp(buffer, "help") == 0)
         {
             system("clear");
-            printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   For more information on how exporing\n|   to files works, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager#\n|\n");
+            printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   For more information on how exporing\n|   to files works, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager?tab=readme-ov-file#exporting-tasks\n|\n");
             continue;
         }
         help = 0;
