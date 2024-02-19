@@ -36,26 +36,25 @@ void completeTask(struct taskList* tasks);
 void exportTasks(struct taskList* tasks);
 
 /**********************************************************************************
-    ** Description: Prompt's the user on whether they would like to import tasks
-    from a file or start fresh with no tasks.
-    ** Parameters: Takes in a buffer, the bufferSize, a variable to keep track
-    of the number of characters read, and a retry variable to indicate if this is
+    ** Description: Prompt's user whether they would like to import tasks
+    from a file or start fresh by creating a task. One of these must be done.
+    ** Parameters: A buffer, buffer size, and a retry variable to indicate if this is
     the first time the user is prompted or if they are retrying after an error.
 **********************************************************************************/
 FILE* promptImport(char** buffer, size_t bufferSize, int retry)
 {
-    //can be absolute or relative filepath ending in the filename of the file you want to import
-    //prompt user to enter file name again, as first attempt failed
+    //if retry flag is set, prompt user to enter file name again, as first attempt failed
     if (retry == 1)
     {
         printf("|--------------------------------------------------\n|\n|   It looks like the file name you\n|   entered couldn't be opened.\n|\n|   Please try again below, either\n|   by hitting enter or entering\n|   a new file name.\n|\n|   : ");
     }
+    //otherwise, prompt user to import tasks or start fresh
     else
     {
         printf("|--------------------------------------------------\n|\n|   Task Manager: Welcome!\n|\n|   To begin, you have 2 options:\n|\n|   1. To import tasks, type the name\n|      of a file from which to\n|      import tasks, and hit enter.\n|\n|      OR\n|\n|   2. To start with no tasks (from\n|      scratch), simply hit enter.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   : ");
     }
 
-    //take in user input; getline can dynamically resize buffer to >32
+    //take in user input; getline can dynamically resize buffer
     size_t charsRead = getline(buffer, &bufferSize, stdin);
     if(charsRead == -1)
     {
@@ -75,12 +74,16 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
     {
         return NULL;
     }
+
+    //otherwise, if the user types 'help', display help message and reprompt with retry flag cleared
     else if(strcmp(*buffer, "help") == 0)
     {
         system("clear");
         printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   Importing from large files with\n|   lots of tasks may take awhile.\n|\n|   First time users with no existing\n|   files may want to start from scratch!\n|\n|   For more information importing\n|   tasks from files, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager?tab=readme-ov-file#importing-tasks\n|\n");
         return promptImport(buffer, bufferSize, 0);
     }
+
+    //otherwise, attempt to open the file entered
     else
     {
         //attempt to open file
@@ -88,6 +91,7 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
         //if file couldn't be opened, return NULL
         if(!importFile)
         {
+            //this will indicate that the file couldn't be opened in main()
             return NULL;
         }
         //otherwise, return the file pointer
@@ -100,11 +104,10 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
 
 /**********************************************************************************
     ** Description: Imports tasks from a correctly formatted text file.
-    ** Parameters: A premade taskList struct the file to import
+    ** Parameters: A premade taskList struct and the file to import from
 **********************************************************************************/
 void importTasks(struct taskList* tasks, FILE* importFile)
 {
-    //import tasks
     char *currLine = NULL;
     size_t len = 0;
     size_t charsRead = 0;
@@ -112,13 +115,15 @@ void importTasks(struct taskList* tasks, FILE* importFile)
     //create tail pointer to make insertions easier
     struct task *tail = NULL;
 
-    //If getline() fails to read any characters from the input stream, it returns -1 (end of file)
+    //if getline() fails to read any characters from the input stream, it returns -1 (end of file)
     while ((charsRead = getline(&currLine, &len, importFile)) != -1){
 
         tasks->numTasks++;
 
         //create a new task corresponding to the current line in file
         struct task *newTask = createTaskFromFile(currLine);
+        
+        //if this imported task is incomplete, increment incompleteTasks
         if(newTask->complete == 0){
             tasks->incompleteTasks++;
         }
@@ -136,10 +141,14 @@ void importTasks(struct taskList* tasks, FILE* importFile)
             tail = newTask;
         }
     }
+
+    //print success message
     system("clear");
     printf("|--------------------------------------------------\n|   Imported %d tasks!\n", tasks->numTasks);
+
+    //free buffer and file
     free(currLine);
-    fclose(importFile); //close the file pointer;
+    fclose(importFile);
 }
 
 /**********************************************************************************
@@ -205,18 +214,22 @@ void createDueDate(struct task* currTask, char* dueDate){
 
 /**********************************************************************************
     ** Description: Prints a task list
-    ** Parameters: Task list struct
+    ** Parameters: Task list struct to be printed
 **********************************************************************************/
 void viewTasks(struct taskList* tasks)
 {
+    //no tasks to print, return to main menu
     if(tasks->numTasks == 0)
     {
         system("clear");
         printf("|--------------------------------------------------\n|   There are no tasks to view.\n|   Please create a task first!\n");
         return;
     }
+
     system("clear");
     printf("|--------------------------------------------------\n|\n|   Task Manager: View Tasks\n|\n");
+
+    //traverse task list, printing each task and its attributes in correct format
     struct task* currTask = tasks->head;
     while(currTask != NULL)
     {
@@ -237,12 +250,11 @@ void viewTasks(struct taskList* tasks)
         
         currTask = currTask->next;
     }
-
-
 }
 
 /**********************************************************************************
-    ** Description: Creates a task from user input and inserts it into tasks
+    ** Description: Prompts user for attributes of a task and creates the task.
+    Note: Tasks resulting from this function are incomplete by default.
     ** Parameters: taskList struct to insert the task into
 **********************************************************************************/
 void createTaskFromUser(struct taskList* tasks)
@@ -256,11 +268,15 @@ void createTaskFromUser(struct taskList* tasks)
     size_t bufferSize = 32;
     size_t charsRead = 0;
 
-    //obtain task name
+    //NAME: ask user for name
     system("clear");
     printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the NAME of the task\n|   you would like to create, and hit\n|   enter.\n|\n|   To cancel, type 'cancel' and hit enter.\n|\n|   : ");
+    
+    //NAME: malloc
     newTask->name = (char *)malloc(bufferSize * sizeof(char));
     memset(newTask->name, '\0', bufferSize);
+
+    //NAME: get user input
     charsRead = getline(&(newTask->name), &bufferSize, stdin);
     (newTask->name)[charsRead - 1] = '\0';
 
@@ -269,57 +285,82 @@ void createTaskFromUser(struct taskList* tasks)
     {
         free(newTask->name);
         free(newTask);
-        return; //cancel this operation
+        return; //cancel create task operation
     }
 
-    //obtain task category
+    //CATEGORY: ask user for category
     printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the CATEGORY of the\n|   task you would like to create, and\n|   hit enter.\n|\n|   To omit a category for this task,\n|   simply hit enter.\n|\n|   : ");
+
+    //CATEGORY: malloc
     newTask->category = (char *)malloc(bufferSize * sizeof(char));
     memset(newTask->category, '\0', bufferSize);
+
+    //CATEGORY: get user input
     charsRead = getline(&(newTask->category), &bufferSize, stdin);
     (newTask->category)[charsRead - 1] = '\0';
+
+    //GATEGORY: if omitted, set to "None"
     if((newTask->category)[0] == '\0')
     {
-        //set category to the string "None"
         strcpy(newTask->category, "None");       
     }
 
-    //obtain task due date (YYYY_MM_DD)
-    printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the YEAR that this\n|   task is due.\n|\n|   : ");
+    //DUE DATE: malloc buffer
     char* buffer = (char *)malloc(bufferSize * sizeof(char));
     memset(buffer, '\0', bufferSize);
-    //year
+
+    //DUE DATE: ask user for YEAR
+    printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the YEAR that this\n|   task is due.\n|\n|   : ");
+    
+    //DUE DATE: get year from user
     charsRead = getline(&buffer, &bufferSize, stdin);
     (buffer)[charsRead - 1] = '\0';
     newTask->dueDate.year = atoi(buffer);
-    //month
+
+    //DUE DATE: ask user for MONTH
     printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the MONTH that this\n|   task is due.\n|\n|   : ");
+
+    //DUE DATE: get month from user
     charsRead = getline(&buffer, &bufferSize, stdin);
     (buffer)[charsRead - 1] = '\0';
     newTask->dueDate.month = atoi(buffer);
-    //day
+
+    //DUE DATE: ask user for DAY
     printf("|--------------------------------------------------\n|\n|   Task Manager: Create Task\n|\n|   Please enter the DATE that this\n|   task is due.\n|\n|   : ");
+
+    //DUE DATE: get day from user
     charsRead = getline(&buffer, &bufferSize, stdin);
     (buffer)[charsRead - 1] = '\0';
     newTask->dueDate.day = atoi(buffer);
+
+    //free temp date buffer
     free(buffer);
 
     //insert newTask into tasks
     if(tasks->head == NULL)
     {
+        //if list is empty, new task is head
         tasks->head = newTask;
     }
     else
     {
         struct task* currTask = tasks->head;
+
+        //traverse to end of list
         while(currTask->next != NULL)
         {
             currTask = currTask->next;
         }
+
+        //insert newTask at end of list
         currTask->next = newTask;
     }
+
+    //increment total and incomplete task count
     tasks->numTasks++;
     tasks->incompleteTasks++;
+
+    //print success message
     printf("|--------------------------------------------------\n|   Task called '%s' created!\n", newTask->name);
     return;
 }
@@ -330,10 +371,14 @@ void createTaskFromUser(struct taskList* tasks)
 **********************************************************************************/
 void freeTaskList(struct taskList* tasks)
 {
+    //curr and next pointers
     struct task* currTask = tasks->head;
+    struct task* nextTask;
+
+    //traverse list, 
     while(currTask != NULL)
     {
-        struct task* nextTask = currTask->next;
+        nextTask = currTask->next;
         free(currTask->name);
         free(currTask->category);
         free(currTask);
@@ -342,11 +387,14 @@ void freeTaskList(struct taskList* tasks)
 }
 
 /**********************************************************************************
-    ** Description: Allows user to mark a task as complete
+    ** Description: Allows user to mark a task as complete. Note, the task to mark
+    as complete isn't yet selected/passed in on this call. This function will ask
+    the user which task they would like to complete within this function
     ** Parameters: taskList from which to mark a task as complete
 **********************************************************************************/
 void completeTask(struct taskList* tasks)
 {
+    //no tasks to mark as complete, return to main menu
     if(tasks->incompleteTasks == 0)
     {
         system("clear");
@@ -357,7 +405,7 @@ void completeTask(struct taskList* tasks)
     //display list of incomplete tasks
     system("clear");
     printf("|--------------------------------------------------\n|\n|   Task Manager: Complete Task\n|\n");
-    //print task names in accordance with their number
+    //print task names in accordance with an incrementing number
     struct task* currTask = tasks->head;
     int i = 0;
     while(currTask != NULL)
@@ -428,11 +476,12 @@ void completeTask(struct taskList* tasks)
 }
 
 /**********************************************************************************
-    ** Description: Exports tasks to a file
+    ** Description: Exports tasks in the process to a file
     ** Parameters: taskList whose tasks to export
 **********************************************************************************/
 void exportTasks(struct taskList* tasks)
 {
+    //no tasks to export, return to main menu
     if(tasks->numTasks == 0)
     {
         system("clear");
@@ -500,9 +549,10 @@ void exportTasks(struct taskList* tasks)
     if(strcmp(buffer, "cancel") == 0)
     {
         free(buffer);
-        return; //cancel this operation
+        return; //cancel export operation
     }
 
+    //create file pointer for opening
     FILE* exportFile;
     if(fileOption == 1)
     {
@@ -535,12 +585,8 @@ void exportTasks(struct taskList* tasks)
     free(buffer);
 }
 
-/**********************************************************************************
-    ** Description: Main Function 
-**********************************************************************************/
 int main(int argc, char *argv[])
 {   
-
     //create buffer
     size_t bufferSize = 32;
     char* buffer = (char *)malloc(bufferSize * sizeof(char));
@@ -561,7 +607,7 @@ int main(int argc, char *argv[])
     system("clear");
     FILE* importFile = promptImport(&buffer, bufferSize, 0);
     
-    //if file couldn't be opened, and user didn't just hit enter to start fresh
+    //if file couldn't be opened, AND user didn't just hit enter to start fresh
     while(importFile == NULL && buffer[0] != '\0')
     {
         //keep reprompting user
@@ -569,15 +615,13 @@ int main(int argc, char *argv[])
     }
 
     //if importFile is null here, user is starting fresh
+    //otherwise, user is importing tasks
     if(!importFile)
     {
-        //create a task (tasks should be null)
         createTaskFromUser(&tasks);
-
     }
-    else //user is importing tasks
+    else
     {
-        //import tasks from importFile
         importTasks(&tasks, importFile);
     }
 
@@ -587,7 +631,7 @@ int main(int argc, char *argv[])
         //display main menu options
         printf("|--------------------------------------------------\n|\n|   Task Manager: Home\n|\n|   1. View all tasks\n|   2. Mark a task as complete\n|   3. Create a new task\n|   4. Export your tasks to a file\n|\n|   Please type 1, 2, 3, or 4, and hit\n|   enter to do the corresponding action.\n|\n|   To exit, type 'exit' and hit enter.\n|\n|   : ");
         
-        // Get user input
+        //get user input
         size_t charsRead = getline(&buffer, &bufferSize, stdin);
         if(charsRead == -1)
         {
