@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
 
 struct date
 {
@@ -51,7 +53,7 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
     //otherwise, prompt user to import tasks or start fresh
     else
     {
-        printf("|--------------------------------------------------\n|\n|   Task Manager: Welcome!\n|\n|   To begin, you have 2 options:\n|\n|   1. To import tasks, type the name\n|      of a file from which to\n|      import tasks, and hit enter.\n|\n|      OR\n|\n|   2. To start with no tasks (from\n|      scratch), simply hit enter.\n|\n|   For more information, type 'help'\n|   and hit enter.\n|\n|   : ");
+        printf("|--------------------------------------------------\n|\n|   Task Manager: Welcome!\n|\n|   To begin, you have 2 options:\n|\n|   1. To import tasks, type the name of a file\n|      from which to import tasks, and hit enter.\n|\n|      OR\n|\n|   2. To start with no tasks (from scratch),\n|      simply hit enter.\n|\n|   To see how import files should be formatted,\n|   type 'help' and hit enter.\n|\n|   : ");
     }
 
     //take in user input; getline can dynamically resize buffer
@@ -75,11 +77,50 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
         return NULL;
     }
 
-    //otherwise, if the user types 'help', display help message and reprompt with retry flag cleared
+    //otherwise, if the user types 'help', call microservice for example formatting and reprompt with retry flag cleared
     else if(strcmp(*buffer, "help") == 0)
     {
         system("clear");
-        printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   Importing from large files with\n|   lots of tasks may take awhile.\n|\n|   First time users with no existing\n|   files may want to start from scratch!\n|\n|   For more information importing\n|   tasks from files, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager?tab=readme-ov-file#importing-tasks\n|\n");
+        printf("|--------------------------------------------------\n|   Generating 5 random tasks...\n|--------------------------------------------------\n");
+
+        //open pipe.txt for writing
+        FILE* pipeWrite = fopen("task-pipe.txt", "w");
+        if(!pipeWrite)
+        {
+            perror("Error opening pipe");
+            exit(1);
+        }
+        //write "gen" to pipe.txt to signal microservice to generate tasks
+        fprintf(pipeWrite, "gen");
+        fclose(pipeWrite);
+
+        //wait for microservice to generate tasks
+        sleep(5);
+
+        //open pipe.txt for reading
+        FILE* pipeRead = fopen("task-pipe.txt", "r");
+        if(!pipeRead)
+        {
+            perror("Error opening pipe");
+            exit(1);
+        }
+
+        //create buffer for reading from pipe
+        char* taskBuffer = (char *)malloc(bufferSize * sizeof(char));
+        memset(taskBuffer, '\0', bufferSize);
+        size_t taskCharsRead = 0;
+
+        //read and print line by line until end of file
+        while((taskCharsRead = getline(&taskBuffer, &bufferSize, pipeRead)) != -1)
+        {
+            printf("%s", taskBuffer);
+        }
+        printf("\n|--------------------------------------------------\n|   Above and between the lines is exactly\n|   how any input file should be formatted\n|   (including the empty line at the end).\n|\n|   Go ahead! Copy the above contents\n|   into a new file, then type in that\n|   file name below to import those tasks!\n");
+
+        //free buffer and close pipe
+        free(taskBuffer);
+        fclose(pipeRead);
+
         return promptImport(buffer, bufferSize, 0);
     }
 
@@ -470,7 +511,9 @@ void completeTask(struct taskList* tasks)
     //mark selected task as complete
     currTask->complete = 1;
     tasks->incompleteTasks--;
-    printf("|\n|   '%s' marked as complete.\n", currTask->name);
+    system("clear");
+
+    printf("|--------------------------------------------------\n|   '%s' marked as complete.\n", currTask->name);
 
     free(buffer);
 }
@@ -587,6 +630,29 @@ void exportTasks(struct taskList* tasks)
 
 int main(int argc, char *argv[])
 {   
+    //fork child process to start up microservice
+    pid_t childPID;
+    pid_t spawnPID = fork();
+
+    switch (spawnPID)
+    {
+        //error forking
+        case -1:
+            perror("Hull Breach!");
+            exit(1);
+            break;
+        //child process
+        case 0:
+            //execute microservice python3 taskgen.py
+            execlp("python3", "python3", "taskgen.py", NULL);
+            break;
+        //parent process
+        default:
+            //fork returns the child's PID in parent process
+            childPID = spawnPID;
+            break; //continue to main program to let user interact
+    }
+
     //create buffer
     size_t bufferSize = 32;
     char* buffer = (char *)malloc(bufferSize * sizeof(char));
@@ -670,6 +736,14 @@ int main(int argc, char *argv[])
     //free dynamic memory
     freeTaskList(&tasks);
     free(buffer);
+
+    //send termination to python microservice
+    kill(childPID, SIGTERM);
+
+    //wait for child process to terminate
+    int status;
+    waitpid(childPID, &status, 0);
+
     system("clear");
     printf("|--------------------------------------------------\n|   Thank you for using Task Manager!\n|--------------------------------------------------\n");
     return 0;
