@@ -2,6 +2,12 @@
 
 This is a simple task manager designed for use on Linux systems. It allows users to import and export tasks, complete tasks, view tasks, and create new tasks.
 
+Task Manager can be run by executing the following commands in the terminal:
+```bash
+gcc -g task-manager.c -o task-manager
+./task-manager
+```
+
 ## Importing Tasks:
 
 If you decide to import tasks from a file, the file should be formatted with each task on a separate line in the following format:

@@ -3,6 +3,8 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 
 struct date
 {
