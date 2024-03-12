@@ -55,7 +55,7 @@ FILE* promptImport(char** buffer, size_t bufferSize, int retry)
     //otherwise, prompt user to import tasks or start fresh
     else
     {
-        printf("|--------------------------------------------------\n|\n|   Task Manager: Welcome!\n|\n|   To begin, you have 2 options:\n|\n|   1. To import tasks, type the name of a file\n|      from which to import tasks, and hit enter.\n|\n|      OR\n|\n|   2. To start with no tasks (from scratch),\n|      simply hit enter.\n|\n|   To see how import files should be formatted,\n|   type 'help' and hit enter.\n|\n|   : ");
+        printf("|--------------------------------------------------\n|\n|   Task Manager: Welcome!\n|\n|   To begin, you have 2 options:\n|\n|   1. To start with no tasks/from scratch, simply\n|      hit enter. (This may be a better option for\n|      first-time users).\n|\n|      OR\n|\n|   2. To import tasks, type the name of a file\n|      from which to import tasks, and hit enter.\n|      (This requires you already have a premade\n|      file from which to import from).\n|\n|   To see how import files should be formatted,\n|   type 'help' and hit enter.\n|\n|   : ");
     }
 
     //take in user input; getline can dynamically resize buffer
@@ -571,7 +571,7 @@ void exportTasks(struct taskList* tasks)
         if(strcmp(buffer, "help") == 0)
         {
             system("clear");
-            printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   For more information on how exporing\n|   to files works, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager?tab=readme-ov-file#exporting-tasks\n|\n");
+            printf("|--------------------------------------------------\n|\n|   Task Manager: Help\n|\n|   For more information on how exporting\n|   to files works, visit the link\n|   below for this project's README.\n|\n|   https://github.com/MasonRosenau/task-manager?tab=readme-ov-file#exporting-tasks\n|\n");
             continue;
         }
         help = 0;
